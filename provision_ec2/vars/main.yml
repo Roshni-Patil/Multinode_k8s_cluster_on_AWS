@@ -1,0 +1,16 @@
+---
+# vars file for provision_ec2
+#
+#
+aws_access_key: "Enter your access key here"
+aws_secret_key: "Enter your secret key here"
+OS_name:
+        - "K8s_master"
+        - "K8s_node1"
+        - "K8s_node2"
+key_name: "newkey1"
+image_id: "ami-0eeb03e72075b9bcc"
+count: 1
+subnet_id: "subnet-ca5bbaa1"
+instance_type: "t2.micro"
+region: "ap-south-1"
