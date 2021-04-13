@@ -1,0 +1,106 @@
+---
+# tasks file for k8s_master
+#
+
+- name: installing docker
+  package:
+      name: docker
+      state: present
+- name: starting docker service
+  service:
+      name: docker
+      enabled: yes
+
+- name : configuring yum repo
+  yum_repository:
+      name: kubernetes
+      description: kubernetes YUM repo
+      baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+      gpgcheck: yes
+      repo_gpgcheck: yes
+      enabled : yes
+      gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+      exclude: kubelet kubeadm kubectl
+      # - name: Installing kubeadm
+      #command: yum install kubeadm -y --disableexcludes=kubernetes
+- name: Installing kubeadm
+  yum:
+      name: kubeadm
+      state: present
+      disable_excludes: kubernetes
+
+- name: Installing kublet
+  package:
+      name: kubelet
+      state: present
+
+- name: Installing kubectl
+  package:
+      name: kubectl
+      state: present
+
+- name : Starting kubelet service
+  service:
+      name: kubelet
+      state: started
+      enabled: yes
+- name : configuring docker daemon.json file
+  copy:
+      src: daemon.json
+      dest: /etc/docker/daemon.json
+- name : Restarting docker services
+  service:
+      name: docker
+      state : restarted
+
+
+
+- name : Pulling K8s configuration images
+  command: kubeadm config images pull
+
+- name  : Installing iproute for traffic
+  package :
+      name: iproute-tc
+      state: present
+
+- name : Restarting docker services
+  service:
+      name: docker
+      state : restarted
+- name: Ip tables
+  copy:
+      dest: /etc/sysctl.d/iptables-1.conf
+      src: kube.conf
+
+- name: Restart system service
+  command: sysctl --system
+
+- name: Initializing Master
+  command: kubeadm init --pod-network-cidr=10.244.0.0/16 --ignore-preflight-errors=NumCPU --ignore-preflight-errors=Mem
+  ignore_errors: yes
+
+- name: Creating .kube directory 
+  command: mkdir -p $HOME/.kube
+  ignore_errors: yes
+
+- name: Config file copying to .kube directory
+  command: sudo cp -i /etc/kubernetes/admin.conf  $HOME/.kube/config
+  ignore_errors: yes
+
+- name: Configuring master as a client
+  shell:  sudo chown $(id -u):$(id -g)  $HOME/.kube/config
+  ignore_errors: yes
+
+- name: Creating Flannel for overlay network
+  command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+  become: true
+  ignore_errors: yes
+- name: Generating token
+  command : kubeadm token create --print-join-command
+  register: token
+
+- name: Copy this token for slave  configuration
+  debug:
+    var: token.stdout_lines
+  register: token
+
