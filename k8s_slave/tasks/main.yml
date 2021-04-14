@@ -1,0 +1,75 @@
+---
+# tasks file for k8s_slave
+#
+#
+- name: installing docker
+  package:
+      name: docker
+      state: present
+- name: starting docker service
+  service:
+      name: docker
+      enabled: yes
+
+- name : configuring yum repo
+  yum_repository:
+      name: kubernetes
+      description: kubernetes YUM repo
+      baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+      gpgcheck: yes
+      repo_gpgcheck: yes
+      enabled : yes
+      gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+      exclude: kubelet kubeadm kubectl
+
+- name: Installing kubeadm
+  yum:
+      name: kubeadm
+      state: present
+      disable_excludes: kubernetes
+- name: Installing kublet
+  yum:
+      name: kubelet
+      state: present
+      disable_excludes: kubernetes
+
+- name: Installing kubectl
+  yum:
+      name: kubectl
+      state: present
+      disable_excludes: kubernetes
+
+- name : Starting kubelet service
+  service:
+      name: kubelet
+      state: started
+      enabled: yes
+
+- name  : Installing iproute for traffic
+  package :
+      name: iproute-tc
+      state: present
+- name : configuring docker daemon.json file
+  copy:
+      src: daemon.json
+      dest: /etc/docker/daemon.json
+- name : Restarting docker services
+  service:
+      name: docker
+      state : restarted
+- name: Ip tables
+  copy:
+      dest: /etc/sysctl.d/iptables-1.conf
+      src: kube.conf
+
+- name: Restart system service
+  command: sysctl --system
+
+- name: join slave to master node
+  shell: "{{ master_token }}"
+  ignore_errors: yes 
+  register: masterToken 
+
+- debug:
+    var: masterToken.stdout_lines 
+
