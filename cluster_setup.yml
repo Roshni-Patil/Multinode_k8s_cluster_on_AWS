@@ -1,0 +1,16 @@
+- hosts: ['tag_Name_K8s_master']
+  roles: 
+    - name: configure Master node
+      role: /root/ansible/k8s/k8s_master
+
+
+- hosts: ['tag_Name_K8s_node1','tag_Name_K8s_node2']
+  vars_prompt: 
+    - name: "master_token"
+      prompt: "Enter token to JOIN master node : "
+      private: no
+
+  roles: 
+    - name: configure slave node   
+      role: /root/ansible/k8s/k8s_slave
+
